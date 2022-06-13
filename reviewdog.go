@@ -78,6 +78,7 @@ func (w *Reviewdog) runFromResult(ctx context.Context, results []*rdf.Diagnostic
 			Result:   check,
 			ToolName: w.toolname,
 		}
+
 		if err := w.c.Post(ctx, comment); err != nil {
 			return err
 		}

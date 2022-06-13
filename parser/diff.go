@@ -24,10 +24,11 @@ func NewDiffParser(strip int) *DiffParser {
 
 // state data for a diagnostic.
 type dstate struct {
-	startLine     int
-	isInsert      bool
-	newLines      []string
-	originalLines []string // For Diagnostic.original_output
+	startLine         int
+	isInsert          bool
+	lastDeletedColumn int
+	newLines          []string
+	originalLines     []string // For Diagnostic.original_output
 }
 
 func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
@@ -35,13 +36,22 @@ func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
 		Start: &rdf.Position{Line: int32(d.startLine)},
 		End:   &rdf.Position{Line: int32(currentLine)},
 	}
+
 	text := strings.Join(d.newLines, "\n")
 	if d.isInsert {
+		fmt.Printf("\tis insert")
 		text += "\n" // Need line-break at the end if it's insertion,
 		drange.GetEnd().Line = int32(d.startLine)
 		drange.GetEnd().Column = 1
 		drange.GetStart().Column = 1
+	} else {
+		drange.GetStart().Column = 1
+		drange.GetEnd().Column = int32(d.lastDeletedColumn)
 	}
+
+	fmt.Printf("build diff: Start %d %d End %d %d\n %s\n", drange.Start.Line, drange.Start.Column,
+		drange.End.Line, drange.End.Column, strings.Join(d.newLines, "\n"))
+
 	return &rdf.Diagnostic{
 		Location:       &rdf.Location{Path: path, Range: drange},
 		Suggestions:    []*rdf.Suggestion{{Range: drange, Text: text}},
@@ -85,6 +95,7 @@ func (p *DiffParser) Parse(r io.Reader) ([]*rdf.Diagnostic, error) {
 				case diff.LineDeleted:
 					lnum++
 					state.originalLines = append(state.originalLines, buildOriginalLine(path, diffLine))
+					state.lastDeletedColumn = len(diffLine.Content) + 1
 					switch prevState {
 					case diff.LineUnchanged:
 						state.startLine = lnum

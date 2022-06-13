@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
 
 	"golang.org/x/build/gerrit"
 
@@ -55,21 +54,41 @@ func (g *ChangeDiff) Diff(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return g.gitDiff(ctx, change.CurrentRevision, g.branch)
+
+	//patch, err := g.cli.GetChangePatch(ctx, g.changeID, "current")
+	//if err != nil {
+	//	fmt.Println("error on my GetChangePatch!")
+	//	return nil, err
+	//} else {
+	//	fmt.Println(patch)
+	//}
+
+	return g.gitDiff(ctx, change.CurrentRevision)
 }
 
-func (g *ChangeDiff) gitDiff(_ context.Context, baseSha, targetSha string) ([]byte, error) {
-	b, err := exec.Command("git", "merge-base", targetSha, baseSha).Output() // #nosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to get merge-base commit: %w", err)
-	}
-	mergeBase := strings.Trim(string(b), "\n")
-	bytes, err := exec.Command("git", "diff", "--find-renames", mergeBase, baseSha).Output()
+func (g *ChangeDiff) gitDiff(ctx context.Context, commitSha string) ([]byte, error) {
+	bytes, err := exec.Command("git", "diff", "--find-renames", commitSha+string("~"), commitSha).Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run git diff: %w", err)
 	}
+
 	return bytes, nil
 }
+
+//func (g *ChangeDiff) gitDiff(_ context.Context, baseSha, targetSha string) ([]byte, error) {
+//	fmt.Printf("baseSha %s targetSha %s\n", baseSha, targetSha)
+//	b, err := exec.Command("git", "merge-base", targetSha, baseSha).Output() // #nosec
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to get merge-base commit: %w", err)
+//	}
+//	mergeBase := strings.Trim(string(b), "\n")
+//	fmt.Printf("mergeBase %s\n", mergeBase)
+//	bytes, err := exec.Command("git", "diff", "--find-renames", mergeBase, baseSha).Output()
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to run git diff: %w", err)
+//	}
+//	return bytes, nil
+//}
 
 // Strip returns 1 as a strip of git diff.
 func (g *ChangeDiff) Strip() int {

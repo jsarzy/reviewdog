@@ -285,6 +285,7 @@ endhunk:
 				line.LnumOld = lold
 				lold++
 			}
+			fmt.Printf("content:\n %s\n type: %#v\n", line.Content, line.Type)
 			hunk.Lines = append(hunk.Lines, line)
 		case tokenNoNewlineAtEOF:
 			// skip \ No newline at end of file. just consume line

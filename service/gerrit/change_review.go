@@ -3,12 +3,15 @@ package gerrit
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 
 	"golang.org/x/build/gerrit"
 
 	"github.com/reviewdog/reviewdog"
+	"github.com/reviewdog/reviewdog/proto/rdf"
+	"github.com/reviewdog/reviewdog/service/commentutil"
 	"github.com/reviewdog/reviewdog/service/serviceutil"
 )
 
@@ -64,21 +67,85 @@ func (g *ChangeReviewCommenter) Flush(ctx context.Context) error {
 	return g.postAllComments(ctx)
 }
 
+func buildCommentRange(s *rdf.Suggestion) gerrit.CommentRange {
+	return gerrit.CommentRange{
+		StartLine:      int(s.Range.Start.Line),
+		StartCharacter: int(s.Range.Start.Column) - 1, // Gerrit uses 0-based indexed columns
+		EndLine:        int(s.Range.End.Line),
+		EndCharacter:   int(s.Range.End.Column) - 1, // Gerrit uses 0-based indexed columns
+	}
+}
+
+func buildFixSuggestion(c *reviewdog.Comment, s *rdf.Suggestion) gerrit.FixSuggestionInfo {
+	path := c.Result.Diagnostic.GetLocation().GetPath()
+
+	return gerrit.FixSuggestionInfo{
+		Description: "suggestion",
+		Replacements: []gerrit.FixReplacementInfo{
+			{
+				Path:        path,
+				Replacement: s.Text,
+				Range:       buildCommentRange(s),
+			},
+		},
+	}
+}
+
+func gerritCommentLine(c *reviewdog.Comment) int {
+	if c.Result.FirstSuggestionInDiffContext && len(c.Result.Diagnostic.Suggestions) > 0 {
+		// Prefer first suggestion start line
+		s := c.Result.Diagnostic.Suggestions[0]
+		return int(s.GetRange().GetStart().GetLine())
+	}
+	return int(c.Result.Diagnostic.GetLocation().GetRange().GetStart().GetLine())
+}
+
+func buildRobotComment(c *reviewdog.Comment) gerrit.RobotCommentInput {
+	msg := commentutil.GerritComment(c)
+
+	line := gerritCommentLine(c)
+
+	robotComment := gerrit.RobotCommentInput{
+		CommentInput: gerrit.CommentInput{
+			Line:    line,
+			Message: msg,
+		},
+		RobotID:        "reviewdog 🐶",
+		RobotRunID:     os.Getenv("GERRIT_REVIEWDOG_RUN_ID"),
+		URL:            os.Getenv("GERRIT_REVIEWDOG_RUN_URL"),
+		FixSuggestions: make([]gerrit.FixSuggestionInfo, 0, len(c.Result.Diagnostic.Suggestions)),
+	}
+
+	for i, s := range c.Result.Diagnostic.Suggestions {
+		fixSuggestion := buildFixSuggestion(c, s)
+		robotComment.FixSuggestions = append(robotComment.FixSuggestions, fixSuggestion)
+	}
+
+	return robotComment
+}
+
 func (g *ChangeReviewCommenter) postAllComments(ctx context.Context) error {
 	review := gerrit.ReviewInput{
-		Comments: map[string][]gerrit.CommentInput{},
+		RobotComments: map[string][]gerrit.RobotCommentInput{},
 	}
 	for _, c := range g.postComments {
 		if !c.Result.InDiffFile {
 			continue
 		}
-		loc := c.Result.Diagnostic.GetLocation()
-		path := loc.GetPath()
-		review.Comments[path] = append(review.Comments[path], gerrit.CommentInput{
-			Line:    int(loc.GetRange().GetStart().GetLine()),
-			Message: c.Result.Diagnostic.GetMessage(),
-		})
+
+		//TODO(kuba) do we need this?
+		if !c.Result.ShouldReport {
+			fmt.Println("Comment should not be reported")
+			continue
+		}
+
+		path := c.Result.Diagnostic.GetLocation().GetPath()
+		robotComment := buildRobotComment(c)
+
+		review.RobotComments[path] = append(review.RobotComments[path], robotComment)
 	}
 
+	// Here we set g.revisionID, but in Diff we ask for current_revision
 	return g.cli.SetReview(ctx, g.changeID, g.revisionID, review)
+
 }
