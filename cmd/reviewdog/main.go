@@ -341,7 +341,7 @@ github-pr-check reporter as a fallback.
 		}
 		cs = gc
 
-		d, err := gerritservice.NewChangeDiff(cli, b.Branch, b.GerritChangeID)
+		d, err := gerritservice.NewChangeDiff(cli, b.GerritChangeID, b.GerritRevisionID)
 		if err != nil {
 			return err
 		}

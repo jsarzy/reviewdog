@@ -39,7 +39,6 @@ func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
 
 	text := strings.Join(d.newLines, "\n")
 	if d.isInsert {
-		fmt.Printf("\tis insert")
 		text += "\n" // Need line-break at the end if it's insertion,
 		drange.GetEnd().Line = int32(d.startLine)
 		drange.GetEnd().Column = 1
@@ -48,9 +47,6 @@ func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
 		drange.GetStart().Column = 1
 		drange.GetEnd().Column = int32(d.lastDeletedColumn)
 	}
-
-	fmt.Printf("build diff: Start %d %d End %d %d\n %s\n", drange.Start.Line, drange.Start.Column,
-		drange.End.Line, drange.End.Column, strings.Join(d.newLines, "\n"))
 
 	return &rdf.Diagnostic{
 		Location:       &rdf.Location{Path: path, Range: drange},

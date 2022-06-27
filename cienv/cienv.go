@@ -114,15 +114,9 @@ func GetGerritBuildInfo() (*BuildInfo, error) {
 		return nil, errors.New("cannot get revision id from environment variable. Set GERRIT_REVISION_ID ?")
 	}
 
-	branch := os.Getenv("GERRIT_BRANCH")
-	if branch == "" {
-		return nil, errors.New("cannot get branch from environment variable. Set GERRIT_BRANCH ?")
-	}
-
 	return &BuildInfo{
 		GerritChangeID:   changeID,
 		GerritRevisionID: revisionID,
-		Branch:           branch,
 	}, nil
 }
 

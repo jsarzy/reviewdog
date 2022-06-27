@@ -19,9 +19,9 @@ var _ reviewdog.DiffService = &ChangeDiff{}
 
 // ChangeDiff is a diff service for Gerrit changes.
 type ChangeDiff struct {
-	cli      *gerrit.Client
-	changeID string
-	branch   string
+	cli        *gerrit.Client
+	changeID   string
+	revisionID string
 
 	// wd is working directory relative to root of repository.
 	wd string
@@ -29,16 +29,16 @@ type ChangeDiff struct {
 
 // NewChangeDiff returns a new ChangeDiff service,
 // it needs git command in $PATH.
-func NewChangeDiff(cli *gerrit.Client, branch, changeID string) (*ChangeDiff, error) {
+func NewChangeDiff(cli *gerrit.Client, changeID, revisionID string) (*ChangeDiff, error) {
 	workDir, err := serviceutil.GitRelWorkdir()
 	if err != nil {
 		return nil, fmt.Errorf("ChangeDiff needs 'git' command: %w", err)
 	}
 	return &ChangeDiff{
-		cli:      cli,
-		branch:   branch,
-		changeID: changeID,
-		wd:       workDir,
+		cli:        cli,
+		changeID:   changeID,
+		revisionID: revisionID,
+		wd:         workDir,
 	}, nil
 }
 
@@ -48,47 +48,17 @@ func NewChangeDiff(cli *gerrit.Client, branch, changeID string) (*ChangeDiff, er
 // `git diff --no-renames`, we want diff which is equivalent to
 // `git diff --find-renames`.
 func (g *ChangeDiff) Diff(ctx context.Context) ([]byte, error) {
-	change, err := g.cli.GetChangeDetail(ctx, g.changeID, gerrit.QueryChangesOpt{
-		Fields: []string{"CURRENT_REVISION"},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	//patch, err := g.cli.GetChangePatch(ctx, g.changeID, "current")
-	//if err != nil {
-	//	fmt.Println("error on my GetChangePatch!")
-	//	return nil, err
-	//} else {
-	//	fmt.Println(patch)
-	//}
-
-	return g.gitDiff(ctx, change.CurrentRevision)
+	return g.gitDiff(ctx)
 }
 
-func (g *ChangeDiff) gitDiff(ctx context.Context, commitSha string) ([]byte, error) {
-	bytes, err := exec.Command("git", "diff", "--find-renames", commitSha+string("~"), commitSha).Output()
+func (g *ChangeDiff) gitDiff(ctx context.Context) ([]byte, error) {
+	bytes, err := exec.Command("git", "diff", "--find-renames", g.revisionID+string("~"), g.revisionID).Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run git diff: %w", err)
 	}
 
 	return bytes, nil
 }
-
-//func (g *ChangeDiff) gitDiff(_ context.Context, baseSha, targetSha string) ([]byte, error) {
-//	fmt.Printf("baseSha %s targetSha %s\n", baseSha, targetSha)
-//	b, err := exec.Command("git", "merge-base", targetSha, baseSha).Output() // #nosec
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to get merge-base commit: %w", err)
-//	}
-//	mergeBase := strings.Trim(string(b), "\n")
-//	fmt.Printf("mergeBase %s\n", mergeBase)
-//	bytes, err := exec.Command("git", "diff", "--find-renames", mergeBase, baseSha).Output()
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to run git diff: %w", err)
-//	}
-//	return bytes, nil
-//}
 
 // Strip returns 1 as a strip of git diff.
 func (g *ChangeDiff) Strip() int {
