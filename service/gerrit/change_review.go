@@ -91,23 +91,11 @@ func buildFixSuggestion(c *reviewdog.Comment, s *rdf.Suggestion) gerrit.FixSugge
 	}
 }
 
-func gerritCommentLine(c *reviewdog.Comment) int {
-	if c.Result.FirstSuggestionInDiffContext && len(c.Result.Diagnostic.Suggestions) > 0 {
-		// Prefer first suggestion start line
-		s := c.Result.Diagnostic.Suggestions[0]
-		return int(s.GetRange().GetStart().GetLine())
-	}
-	return int(c.Result.Diagnostic.GetLocation().GetRange().GetStart().GetLine())
-}
-
 func buildRobotComment(c *reviewdog.Comment) gerrit.RobotCommentInput {
 	msg := commentutil.GerritComment(c)
 
-	line := gerritCommentLine(c)
-
 	robotComment := gerrit.RobotCommentInput{
 		CommentInput: gerrit.CommentInput{
-			Line:    line,
 			Message: msg,
 		},
 		RobotID:        "reviewdog 🐶",
@@ -116,9 +104,18 @@ func buildRobotComment(c *reviewdog.Comment) gerrit.RobotCommentInput {
 		FixSuggestions: make([]gerrit.FixSuggestionInfo, 0, len(c.Result.Diagnostic.Suggestions)),
 	}
 
-	for i, s := range c.Result.Diagnostic.Suggestions {
+	for _, s := range c.Result.Diagnostic.Suggestions {
 		fixSuggestion := buildFixSuggestion(c, s)
 		robotComment.FixSuggestions = append(robotComment.FixSuggestions, fixSuggestion)
+	}
+
+	if c.Result.FirstSuggestionInDiffContext && len(c.Result.Diagnostic.Suggestions) > 0 {
+		firstSuggestion := c.Result.Diagnostic.Suggestions[0]
+		r := buildCommentRange(firstSuggestion)
+		robotComment.CommentInput.Range = &r
+	} else {
+		line := int(c.Result.Diagnostic.GetLocation().GetRange().GetStart().GetLine())
+		robotComment.CommentInput.Line = line
 	}
 
 	return robotComment
@@ -133,11 +130,7 @@ func (g *ChangeReviewCommenter) postAllComments(ctx context.Context) error {
 			continue
 		}
 
-		//TODO(kuba) do we need this?
-		if !c.Result.ShouldReport {
-			fmt.Println("Comment should not be reported")
-			continue
-		}
+		//TODO(kuba) Check if comments are also filtered in other reportes
 
 		path := c.Result.Diagnostic.GetLocation().GetPath()
 		robotComment := buildRobotComment(c)
@@ -145,7 +138,6 @@ func (g *ChangeReviewCommenter) postAllComments(ctx context.Context) error {
 		review.RobotComments[path] = append(review.RobotComments[path], robotComment)
 	}
 
-	// Here we set g.revisionID, but in Diff we ask for current_revision
 	return g.cli.SetReview(ctx, g.changeID, g.revisionID, review)
 
 }
