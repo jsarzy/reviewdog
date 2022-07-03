@@ -36,7 +36,6 @@ func setupEnvs() (cleanup func()) {
 		"GITHUB_ACTIONS",
 		"GERRIT_CHANGE_ID",
 		"GERRIT_REVISION_ID",
-		"GERRIT_BRANCH",
 	}
 	saveEnvs := make(map[string]string)
 	for _, key := range cleanEnvs {
@@ -293,10 +292,5 @@ func TestGetGerritBuildInfo(t *testing.T) {
 		t.Error("error expected but got nil")
 	} else {
 		t.Log(err)
-	}
-
-	os.Setenv("GERRIT_BRANCH", "master")
-	if _, err := GetGerritBuildInfo(); err != nil {
-		t.Error("nil expected but got err")
 	}
 }

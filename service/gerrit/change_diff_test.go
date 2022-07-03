@@ -10,6 +10,7 @@ import (
 	"github.com/andygrunwald/go-gerrit"
 )
 
+//TODO(kuba) fix the tests
 func TestChangeDiff_Diff(t *testing.T) {
 	getChangeDetailAPICall := 0
 

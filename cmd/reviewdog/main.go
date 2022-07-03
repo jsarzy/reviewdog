@@ -145,12 +145,11 @@ const (
 
 		1. Set GERRIT_USERNAME and GERRIT_PASSWORD for basic authentication or
 		GIT_GITCOOKIE_PATH for git cookie based authentication.
-		2. Set GERRIT_CHANGE_ID, GERRIT_REVISION_ID GERRIT_BRANCH abd GERRIT_ADDRESS
+		2. Set GERRIT_CHANGE_ID, GERRIT_REVISION_ID and GERRIT_ADDRESS
 
 		For example:
 			$ export GERRIT_CHANGE_ID=myproject~master~I1293efab014de2
 			$ export GERRIT_REVISION_ID=ed318bf9a3c
-			$ export GERRIT_BRANCH=master
 			$ export GERRIT_ADDRESS=http://localhost:8080
 	
 	"bitbucket-code-report"
@@ -341,7 +340,7 @@ github-pr-check reporter as a fallback.
 		}
 		cs = gc
 
-		d, err := gerritservice.NewChangeDiff(cli, b.Branch, b.GerritChangeID)
+		d, err := gerritservice.NewChangeDiff(cli, b.GerritChangeID, b.GerritRevisionID)
 		if err != nil {
 			return err
 		}

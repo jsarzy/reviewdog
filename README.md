@@ -527,7 +527,6 @@ Set `GERRIT_USERNAME` and `GERRIT_PASSWORD` environment variables for basic auth
 ```shell
 $ export GERRIT_CHANGE_ID=changeID
 $ export GERRIT_REVISION_ID=revisionID
-$ export GERRIT_BRANCH=master
 $ export GERRIT_ADDRESS=http://<gerrit-host>:<gerrit-port>
 $ reviewdog -reporter=gerrit-change-review
 ```
