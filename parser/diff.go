@@ -28,6 +28,7 @@ type dstate struct {
 	isInsert      bool
 	newLines      []string
 	originalLines []string // For Diagnostic.original_output
+	endColumn     int
 }
 
 func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
@@ -41,6 +42,9 @@ func (d dstate) build(path string, currentLine int) *rdf.Diagnostic {
 		drange.GetEnd().Line = int32(d.startLine)
 		drange.GetEnd().Column = 1
 		drange.GetStart().Column = 1
+	} else {
+		drange.GetStart().Column = 1
+		drange.GetEnd().Column = int32(d.endColumn)
 	}
 	return &rdf.Diagnostic{
 		Location:       &rdf.Location{Path: path, Range: drange},
@@ -85,6 +89,7 @@ func (p *DiffParser) Parse(r io.Reader) ([]*rdf.Diagnostic, error) {
 				case diff.LineDeleted:
 					lnum++
 					state.originalLines = append(state.originalLines, buildOriginalLine(path, diffLine))
+					state.endColumn = len(diffLine.Content) + 1
 					switch prevState {
 					case diff.LineUnchanged:
 						state.startLine = lnum
