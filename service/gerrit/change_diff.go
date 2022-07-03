@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"golang.org/x/build/gerrit"
+	"github.com/andygrunwald/go-gerrit"
 
 	"github.com/reviewdog/reviewdog"
 	"github.com/reviewdog/reviewdog/service/serviceutil"
@@ -49,9 +49,10 @@ func NewChangeDiff(cli *gerrit.Client, branch, changeID string) (*ChangeDiff, er
 // `git diff --no-renames`, we want diff which is equivalent to
 // `git diff --find-renames`.
 func (g *ChangeDiff) Diff(ctx context.Context) ([]byte, error) {
-	change, err := g.cli.GetChangeDetail(ctx, g.changeID, gerrit.QueryChangesOpt{
-		Fields: []string{"CURRENT_REVISION"},
-	})
+	opts := &gerrit.ChangeOptions{
+		AdditionalFields: []string{"CURRENT_REVISION"},
+	}
+	change, _, err := g.cli.Changes.GetChangeDetail(g.changeID, opts)
 	if err != nil {
 		return nil, err
 	}

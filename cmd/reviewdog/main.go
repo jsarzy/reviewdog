@@ -16,9 +16,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"golang.org/x/build/gerrit"
 	"golang.org/x/oauth2"
 
+	"github.com/andygrunwald/go-gerrit"
 	"github.com/google/go-github/v39/github"
 	"github.com/mattn/go-shellwords"
 	"github.com/reviewdog/errorformat/fmts"
@@ -593,19 +593,24 @@ func gerritBuildWithClient() (*cienv.BuildInfo, *gerrit.Client, error) {
 		return nil, nil, errors.New("cannot get gerrit host address from environment variable. Set GERRIT_ADDRESS ?")
 	}
 
+	client, err := gerrit.NewClient(gerritAddr, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build client for Gerrit API: %w", err)
+	}
+
 	username := os.Getenv("GERRIT_USERNAME")
 	password := os.Getenv("GERRIT_PASSWORD")
 	if username != "" && password != "" {
-		client := gerrit.NewClient(gerritAddr, gerrit.BasicAuth(username, password))
+		client.Authentication.SetBasicAuth(username, password)
 		return buildInfo, client, nil
 	}
 
-	if useGitCookiePath := os.Getenv("GERRIT_GIT_COOKIE_PATH"); useGitCookiePath != "" {
-		client := gerrit.NewClient(gerritAddr, gerrit.GitCookieFileAuth(useGitCookiePath))
-		return buildInfo, client, nil
-	}
+	//TODO(Kuba) set git cookie auth
+	//if useGitCookiePath := os.Getenv("GERRIT_GIT_COOKIE_PATH"); useGitCookiePath != "" {
+	//	client := gerrit.NewClient(gerritAddr, gerrit.GitCookieFileAuth(useGitCookiePath))
+	//	return buildInfo, client, nil
+	//}
 
-	client := gerrit.NewClient(gerritAddr, gerrit.NoAuth)
 	return buildInfo, client, nil
 }
 

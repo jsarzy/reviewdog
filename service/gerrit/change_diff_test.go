@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"golang.org/x/build/gerrit"
+	"github.com/andygrunwald/go-gerrit"
 )
 
 func TestChangeDiff_Diff(t *testing.T) {
@@ -26,7 +26,10 @@ func TestChangeDiff_Diff(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	cli := gerrit.NewClient(ts.URL, gerrit.NoAuth)
+	cli, err := gerrit.NewClient(ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	g, err := NewChangeDiff(cli, "HEAD^", "changeID")
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"golang.org/x/build/gerrit"
+	"github.com/andygrunwald/go-gerrit"
 
 	"github.com/reviewdog/reviewdog"
 	"github.com/reviewdog/reviewdog/service/serviceutil"
@@ -80,5 +80,6 @@ func (g *ChangeReviewCommenter) postAllComments(ctx context.Context) error {
 		})
 	}
 
-	return g.cli.SetReview(ctx, g.changeID, g.revisionID, review)
+	_, _, err := g.cli.Changes.SetReview(g.changeID, g.revisionID, &review)
+	return err
 }

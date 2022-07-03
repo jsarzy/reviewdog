@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/andygrunwald/go-gerrit"
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/build/gerrit"
 
 	"github.com/reviewdog/reviewdog"
 	"github.com/reviewdog/reviewdog/filter"
@@ -116,7 +116,10 @@ func TestChangeReviewCommenter_Post_Flush(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	cli := gerrit.NewClient(ts.URL, gerrit.NoAuth)
+	cli, err := gerrit.NewClient(ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	g, err := NewChangeReviewCommenter(cli, "testChangeID", "testRevisionID")
 	if err != nil {

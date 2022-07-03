@@ -25,14 +25,16 @@ require (
 	github.com/vvakame/sdlog v0.0.0-20200409072131-7c0d359efddc
 	github.com/xanzy/go-gitlab v0.68.2
 	go.opencensus.io v0.23.0
-	golang.org/x/build v0.0.0-20200616162219-07bebbe343e9
 	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require cloud.google.com/go/compute v1.7.0
+require (
+	cloud.google.com/go/compute v1.7.0
+	github.com/andygrunwald/go-gerrit v0.0.0-20220608063906-28cf26f84ecc
+)
 
 require (
 	github.com/aws/aws-sdk-go v1.43.31 // indirect
