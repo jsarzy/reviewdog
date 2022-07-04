@@ -77,6 +77,41 @@ func MarkdownComment(c *reviewdog.Comment) string {
 	return sb.String()
 }
 
+//TODO(kuba) add tests, change message in case of diff
+func GerritComment(c *reviewdog.Comment) string {
+	var sb strings.Builder
+	if s := severity(c); s != "" {
+		sb.WriteString(s)
+		sb.WriteString(" ")
+	}
+	if tool := toolName(c); tool != "" {
+		sb.WriteString(fmt.Sprintf("[%s] ", tool))
+	}
+
+	code := c.Result.Diagnostic.GetCode().GetValue()
+	if code != "" {
+		if url := c.Result.Diagnostic.GetCode().GetUrl(); url != "" {
+			sb.WriteString(fmt.Sprintf("<[%s](%s)> ", code, url))
+		} else {
+			sb.WriteString(fmt.Sprintf("<%s> ", code))
+		}
+	}
+
+	msg := c.Result.Diagnostic.GetMessage()
+	if msg == "" && code == "" {
+		// If there is no message, try to build it from original output
+		var mb strings.Builder
+		mb.WriteString("output:\n")
+		for _, s := range strings.Split(c.Result.Diagnostic.OriginalOutput, "\n") {
+			mb.WriteString(fmt.Sprintf(" %s\n", s))
+		}
+		msg = mb.String()
+	}
+
+	sb.WriteString(msg)
+	return sb.String()
+}
+
 func toolName(c *reviewdog.Comment) string {
 	if name := c.Result.Diagnostic.GetSource().GetName(); name != "" {
 		return name

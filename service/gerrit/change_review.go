@@ -3,12 +3,15 @@ package gerrit
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/andygrunwald/go-gerrit"
 
 	"github.com/reviewdog/reviewdog"
+	"github.com/reviewdog/reviewdog/proto/rdf"
+	"github.com/reviewdog/reviewdog/service/commentutil"
 	"github.com/reviewdog/reviewdog/service/serviceutil"
 )
 
@@ -64,20 +67,73 @@ func (g *ChangeReviewCommenter) Flush(ctx context.Context) error {
 	return g.postAllComments(ctx)
 }
 
+func buildCommentRange(s *rdf.Suggestion) gerrit.CommentRange {
+	return gerrit.CommentRange{
+		StartLine:      int(s.Range.Start.Line),
+		StartCharacter: int(s.Range.Start.Column) - 1, // Gerrit uses 0-based indexed columns
+		EndLine:        int(s.Range.End.Line),
+		EndCharacter:   int(s.Range.End.Column) - 1, // Gerrit uses 0-based indexed columns
+	}
+}
+
+func buildFixSuggestion(c *reviewdog.Comment, s *rdf.Suggestion) gerrit.FixSuggestionInfo {
+	path := c.Result.Diagnostic.GetLocation().GetPath()
+
+	return gerrit.FixSuggestionInfo{
+		Description: "suggestion",
+		Replacements: []gerrit.FixReplacementInfo{
+			{
+				Path:        path,
+				Replacement: s.Text,
+				Range:       buildCommentRange(s),
+			},
+		},
+	}
+}
+
+func buildRobotComment(c *reviewdog.Comment) gerrit.RobotCommentInput {
+	msg := commentutil.GerritComment(c)
+
+	robotComment := gerrit.RobotCommentInput{
+		CommentInput: gerrit.CommentInput{
+			Message: msg,
+		},
+		RobotID:        "reviewdog 🐶",
+		RobotRunID:     os.Getenv("GERRIT_REVIEWDOG_RUN_ID"),
+		URL:            os.Getenv("GERRIT_REVIEWDOG_RUN_URL"),
+		FixSuggestions: make([]gerrit.FixSuggestionInfo, 0),
+	}
+
+	for _, s := range c.Result.Diagnostic.Suggestions {
+		robotComment.FixSuggestions = append(robotComment.FixSuggestions, buildFixSuggestion(c, s))
+	}
+
+	if c.Result.FirstSuggestionInDiffContext && len(c.Result.Diagnostic.Suggestions) > 0 {
+		firstSuggestion := c.Result.Diagnostic.Suggestions[0]
+		r := buildCommentRange(firstSuggestion)
+		robotComment.CommentInput.Range = &r
+	} else {
+		line := int(c.Result.Diagnostic.GetLocation().GetRange().GetStart().GetLine())
+		robotComment.CommentInput.Line = line
+	}
+
+	return robotComment
+}
+
 func (g *ChangeReviewCommenter) postAllComments(ctx context.Context) error {
 	review := gerrit.ReviewInput{
-		Comments: map[string][]gerrit.CommentInput{},
+		RobotComments: map[string][]gerrit.RobotCommentInput{},
 	}
 	for _, c := range g.postComments {
 		if !c.Result.InDiffFile {
 			continue
 		}
-		loc := c.Result.Diagnostic.GetLocation()
-		path := loc.GetPath()
-		review.Comments[path] = append(review.Comments[path], gerrit.CommentInput{
-			Line:    int(loc.GetRange().GetStart().GetLine()),
-			Message: c.Result.Diagnostic.GetMessage(),
-		})
+		//TODO(kuba) Check if comments are also filtered in other reportes
+
+		path := c.Result.Diagnostic.GetLocation().GetPath()
+		robotComment := buildRobotComment(c)
+
+		review.RobotComments[path] = append(review.RobotComments[path], robotComment)
 	}
 
 	_, _, err := g.cli.Changes.SetReview(g.changeID, g.revisionID, &review)

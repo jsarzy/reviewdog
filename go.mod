@@ -64,3 +64,5 @@ require (
 	google.golang.org/grpc v1.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/andygrunwald/go-gerrit => github.com/jsarzy/go-gerrit v0.0.0-20220704101525-70a721d8ad2e
